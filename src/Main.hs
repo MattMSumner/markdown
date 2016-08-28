@@ -8,7 +8,7 @@ import Text.Megaparsec.String
 import qualified Text.Megaparsec.Lexer as L
 
 data MarkdownError = MarkdownError String deriving Show
-data Block = Header Int deriving Show
+data Block = Header Int String deriving Show
 
 sc :: Parser ()
 sc = L.space (void spaceChar) lineCmnt blockCmnt
@@ -21,12 +21,24 @@ lexeme = L.lexeme sc
 symbol :: String -> Parser String
 symbol = L.symbol sc
 
-parseMarkdown :: Parser Block
+parseMarkdown :: Parser [Block]
 parseMarkdown = do
+  parseBlocks <* eof
+
+parseBlocks :: Parser [Block]
+parseBlocks = manyTill block eof
+
+block :: Parser Block
+block = try $ do
+    choice [ header ]
+
+header :: Parser Block
+header = do
     level <- count' 1 6 (symbol "#") >>= return . length
-    return $ Header level
+    text <- manyTill anyChar eol
+    return $ Header level text
 
 main :: IO ()
 main = do
-    (expr:_) <- getArgs
+    expr <- getContents
     parseTest parseMarkdown expr
